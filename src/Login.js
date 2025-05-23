@@ -1,5 +1,5 @@
 // src/Login.js
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 
@@ -7,6 +7,13 @@ function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      navigate('/dashboard');
+    }
+  }, [navigate]);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -18,7 +25,7 @@ function Login() {
       localStorage.setItem('token', response.data.token);
       navigate('/dashboard');
     } catch (err) {
-      alert('Login falhou: ' + err.response?.data?.error || err.message);
+      alert('Login falhou: ' + (err.response?.data?.error || err.message));
     }
   };
 
