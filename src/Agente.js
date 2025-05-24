@@ -1,44 +1,67 @@
 // src/Agente.js
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { useNavigate, useLocation } from 'react-router-dom';
 
-export default function Agente() {
+function Agente() {
   const [name, setName] = useState('');
   const [prompt, setPrompt] = useState('');
   const [token, setToken] = useState('');
   const [agentId, setAgentId] = useState(null);
   const [question, setQuestion] = useState('');
   const [answer, setAnswer] = useState('');
-  const [error, setError] = useState('');
 
   const navigate = useNavigate();
+  const location = useLocation();
+  const searchParams = new URLSearchParams(location.search);
+  const editingId = searchParams.get('id');
+
   const API_BASE_URL = 'https://agente-ia-jawq.onrender.com/api';
   const authToken = localStorage.getItem('token');
 
   useEffect(() => {
-    if (!authToken) {
-      navigate('/login');
+    if (editingId) {
+      axios
+        .get(`${API_BASE_URL}/agents`, {
+          headers: { Authorization: `Bearer ${authToken}` }
+        })
+        .then((response) => {
+          const agente = response.data.find((a) => a._id === editingId);
+          if (agente) {
+            setName(agente.name);
+            setPrompt(agente.prompt);
+            setToken(agente.openaiToken);
+            setAgentId(agente._id);
+          }
+        })
+        .catch((err) => alert('Erro ao buscar agente: ' + err.message));
     }
-  }, [authToken, navigate]);
+  }, [editingId, authToken]);
 
-  const createAgent = async () => {
+  const handleSubmit = async () => {
     try {
-      const response = await axios.post(
-        `${API_BASE_URL}/agents`,
-        { name, prompt, openaiToken: token },
-        { headers: { Authorization: `Bearer ${authToken}` } }
-      );
-      setAgentId(response.data.id);
-      alert('Agente criado com sucesso!');
+      if (agentId) {
+        await axios.put(
+          `${API_BASE_URL}/agents/${agentId}`,
+          { name, prompt, openaiToken: token },
+          { headers: { Authorization: `Bearer ${authToken}` } }
+        );
+        alert('Agente atualizado com sucesso!');
+      } else {
+        const response = await axios.post(
+          `${API_BASE_URL}/agents`,
+          { name, prompt, openaiToken: token },
+          { headers: { Authorization: `Bearer ${authToken}` } }
+        );
+        setAgentId(response.data.id);
+        alert('Agente criado com sucesso!');
+      }
     } catch (err) {
-      console.error(err);
-      const msg = err.response?.data?.error || err.message || 'Erro ao criar agente.';
-      setError(msg);
+      alert('Erro ao salvar agente: ' + err.message);
     }
   };
 
-  const askAgent = async () => {
+  const handlePerguntar = async () => {
     if (!agentId || !question) return;
     try {
       const response = await axios.post(
@@ -48,60 +71,50 @@ export default function Agente() {
       );
       setAnswer(response.data.answer);
     } catch (err) {
-      console.error(err);
-      const msg = err.response?.data?.error || err.message || 'Erro ao perguntar.';
-      setError(msg);
+      alert('Erro ao perguntar: ' + err.message);
     }
   };
 
   return (
     <div style={{ maxWidth: 600, margin: '0 auto', padding: 20 }}>
-      <h2>Criar Agente de IA</h2>
-
-      {error && (
-        <div style={{ color: 'red', marginBottom: 10 }}>
-          <strong>{error}</strong>
-        </div>
-      )}
-
+      <h2>{agentId ? 'Editar Agente' : 'Criar Agente de IA'}</h2>
       <input
-        placeholder="Nome do agente"
+        placeholder="Nome"
         value={name}
-        onChange={e => setName(e.target.value)}
+        onChange={(e) => setName(e.target.value)}
         style={{ width: '100%', marginBottom: 10 }}
       />
-
       <textarea
         placeholder="Prompt"
         value={prompt}
-        onChange={e => setPrompt(e.target.value)}
+        onChange={(e) => setPrompt(e.target.value)}
         style={{ width: '100%', marginBottom: 10 }}
       />
-
       <input
         placeholder="Token da OpenAI"
         value={token}
-        onChange={e => setToken(e.target.value)}
+        onChange={(e) => setToken(e.target.value)}
         style={{ width: '100%', marginBottom: 10 }}
       />
-
-      <button onClick={createAgent}>Criar Agente</button>
+      <button onClick={handleSubmit} style={{ marginBottom: 20 }}>
+        {agentId ? 'Atualizar Agente' : 'Criar Agente'}
+      </button>
 
       {agentId && (
         <>
-          <h3 style={{ marginTop: 30 }}>Perguntar ao Agente</h3>
+          <h3>Perguntar ao Agente</h3>
           <input
             placeholder="Pergunta"
             value={question}
-            onChange={e => setQuestion(e.target.value)}
+            onChange={(e) => setQuestion(e.target.value)}
             style={{ width: '100%', marginBottom: 10 }}
           />
-          <button onClick={askAgent}>Perguntar</button>
+          <button onClick={handlePerguntar}>Perguntar</button>
           {answer && (
-            <div style={{ marginTop: 20, padding: 10, border: '1px solid #ccc' }}>
-              <strong>Resposta:</strong>
-              <br />
-              {answer}
+            <div
+              style={{ marginTop: 20, padding: 10, border: '1px solid #ccc' }}
+            >
+              <strong>Resposta:</strong> <br /> {answer}
             </div>
           )}
         </>
@@ -109,3 +122,5 @@ export default function Agente() {
     </div>
   );
 }
+
+export default Agente;
