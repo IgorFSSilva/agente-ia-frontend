@@ -1,5 +1,5 @@
 // src/Agente.js
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useNavigate, useLocation } from 'react-router-dom';
 
@@ -7,77 +7,78 @@ function Agente() {
   const [name, setName] = useState('');
   const [prompt, setPrompt] = useState('');
   const [token, setToken] = useState('');
+  const [whatsappNumbers, setWhatsappNumbers] = useState(['']);
   const [agentId, setAgentId] = useState(null);
-  const [question, setQuestion] = useState('');
-  const [answer, setAnswer] = useState('');
 
   const navigate = useNavigate();
   const location = useLocation();
-  const searchParams = new URLSearchParams(location.search);
-  const editingId = searchParams.get('id');
-
   const API_BASE_URL = 'https://agente-ia-jawq.onrender.com/api';
   const authToken = localStorage.getItem('token');
 
   useEffect(() => {
-    if (editingId) {
+    const query = new URLSearchParams(location.search);
+    const id = query.get('id');
+    if (id) {
+      setAgentId(id);
       axios
-        .get(`${API_BASE_URL}/agents`, {
+        .get(`${API_BASE_URL}/agents/${id}`, {
           headers: { Authorization: `Bearer ${authToken}` }
         })
-        .then((response) => {
-          const agente = response.data.find((a) => a._id === editingId);
-          if (agente) {
-            setName(agente.name);
-            setPrompt(agente.prompt);
-            setToken(agente.openaiToken);
-            setAgentId(agente._id);
-          }
+        .then((res) => {
+          const agente = res.data;
+          setName(agente.name);
+          setPrompt(agente.prompt);
+          setToken(agente.openaiToken);
+          setWhatsappNumbers(agente.whatsappNumbers || ['']);
         })
-        .catch((err) => alert('Erro ao buscar agente: ' + err.message));
+        .catch((err) => alert('Erro ao carregar agente: ' + err.message));
     }
-  }, [editingId, authToken]);
+  }, [location.search, authToken]);
 
-  const handleSubmit = async () => {
+  const handleSave = async () => {
+    const payload = {
+      name,
+      prompt,
+      openaiToken: token,
+      whatsappNumbers: whatsappNumbers.filter(Boolean)
+    };
+
     try {
       if (agentId) {
-        await axios.put(
-          `${API_BASE_URL}/agents/${agentId}`,
-          { name, prompt, openaiToken: token },
-          { headers: { Authorization: `Bearer ${authToken}` } }
-        );
+        await axios.put(`${API_BASE_URL}/agents/${agentId}`, payload, {
+          headers: { Authorization: `Bearer ${authToken}` }
+        });
         alert('Agente atualizado com sucesso!');
       } else {
-        const response = await axios.post(
-          `${API_BASE_URL}/agents`,
-          { name, prompt, openaiToken: token },
-          { headers: { Authorization: `Bearer ${authToken}` } }
-        );
-        setAgentId(response.data.id);
+        await axios.post(`${API_BASE_URL}/agents`, payload, {
+          headers: { Authorization: `Bearer ${authToken}` }
+        });
         alert('Agente criado com sucesso!');
       }
+      navigate('/meus-agentes');
     } catch (err) {
       alert('Erro ao salvar agente: ' + err.message);
     }
   };
 
-  const handlePerguntar = async () => {
-    if (!agentId || !question) return;
-    try {
-      const response = await axios.post(
-        `${API_BASE_URL}/agents/${agentId}/query`,
-        { question },
-        { headers: { Authorization: `Bearer ${authToken}` } }
-      );
-      setAnswer(response.data.answer);
-    } catch (err) {
-      alert('Erro ao perguntar: ' + err.message);
-    }
+  const updateWhatsappNumber = (index, value) => {
+    const updated = [...whatsappNumbers];
+    updated[index] = value;
+    setWhatsappNumbers(updated);
+  };
+
+  const addWhatsappField = () => {
+    setWhatsappNumbers([...whatsappNumbers, '']);
+  };
+
+  const removeWhatsappField = (index) => {
+    const updated = whatsappNumbers.filter((_, i) => i !== index);
+    setWhatsappNumbers(updated);
   };
 
   return (
     <div style={{ maxWidth: 600, margin: '0 auto', padding: 20 }}>
-      <h2>{agentId ? 'Editar Agente' : 'Criar Agente de IA'}</h2>
+      <h2>{agentId ? 'Editar Agente' : 'Criar Novo Agente'}</h2>
       <input
         placeholder="Nome"
         value={name}
@@ -96,29 +97,24 @@ function Agente() {
         onChange={(e) => setToken(e.target.value)}
         style={{ width: '100%', marginBottom: 10 }}
       />
-      <button onClick={handleSubmit} style={{ marginBottom: 20 }}>
-        {agentId ? 'Atualizar Agente' : 'Criar Agente'}
+
+      <h4>Números de WhatsApp</h4>
+      {whatsappNumbers.map((num, index) => (
+        <div key={index} style={{ display: 'flex', marginBottom: 8 }}>
+          <input
+            value={num}
+            onChange={(e) => updateWhatsappNumber(index, e.target.value)}
+            placeholder="5511987654321"
+            style={{ flex: 1, marginRight: 8 }}
+          />
+          <button onClick={() => removeWhatsappField(index)}>Remover</button>
+        </div>
+      ))}
+      <button onClick={addWhatsappField} style={{ marginBottom: 20 }}>
+        Adicionar Número
       </button>
 
-      {agentId && (
-        <>
-          <h3>Perguntar ao Agente</h3>
-          <input
-            placeholder="Pergunta"
-            value={question}
-            onChange={(e) => setQuestion(e.target.value)}
-            style={{ width: '100%', marginBottom: 10 }}
-          />
-          <button onClick={handlePerguntar}>Perguntar</button>
-          {answer && (
-            <div
-              style={{ marginTop: 20, padding: 10, border: '1px solid #ccc' }}
-            >
-              <strong>Resposta:</strong> <br /> {answer}
-            </div>
-          )}
-        </>
-      )}
+      <button onClick={handleSave}>Salvar</button>
     </div>
   );
 }
