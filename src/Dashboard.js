@@ -50,11 +50,15 @@ function Dashboard() {
 
   return (
     <div style={{ maxWidth: 600, margin: '0 auto', padding: 20 }}>
-      <div style={{ textAlign: 'right' }}>
-        <button onClick={handleLogout} style={{ marginBottom: 20 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 20 }}>
+        <button onClick={() => navigate('/meus-agentes')}>
+          Ver Meus Agentes
+        </button>
+        <button onClick={handleLogout}>
           Sair
         </button>
       </div>
+
       <h2>Criar Agente de IA</h2>
       <input
         placeholder="Nome"
@@ -87,9 +91,7 @@ function Dashboard() {
           />
           <button onClick={askAgent}>Perguntar</button>
           {answer && (
-            <div
-              style={{ marginTop: 20, padding: 10, border: '1px solid #ccc' }}
-            >
+            <div style={{ marginTop: 20, padding: 10, border: '1px solid #ccc' }}>
               <strong>Resposta:</strong> <br /> {answer}
             </div>
           )}
